@@ -303,7 +303,9 @@ func (r *nodeResource) NewNode(model nodeResourceModel) (evengsdk.Node, error) {
 	if !model.Icon.IsUnknown() {
 		node.Icon = model.Icon.ValueString()
 	} else {
-		node.Icon = tmpl["options"].(map[string]interface{})["icon"].(map[string]interface{})["value"].(string)
+		if icon, ok := tmpl["options"].(map[string]interface{})["icon"].(map[string]interface{})["value"].(string); ok {
+			node.Icon = icon
+		}
 	}
 	if !model.Image.IsUnknown() {
 		node.Image = model.Image.ValueString()
@@ -329,8 +331,11 @@ func (r *nodeResource) NewNode(model nodeResourceModel) (evengsdk.Node, error) {
 	} else {
 		// Check if the template has an ethernet option
 		_, ok := tmpl["options"].(map[string]interface{})["ethernet"]
+
 		if ok {
-			node.Ethernet = int(tmpl["options"].(map[string]interface{})["ethernet"].(map[string]interface{})["value"].(float64))
+			if ethernet, ok := tmpl["options"].(map[string]interface{})["ethernet"].(map[string]interface{})["value"].(float64); ok {
+				node.Ethernet = int(ethernet)
+			}
 		}
 	}
 	return node, nil
