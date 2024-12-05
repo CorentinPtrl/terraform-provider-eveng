@@ -74,10 +74,9 @@ resource "eveng_node" "node" {
 
 resource "eveng_node_link" "node" {
   lab_path       = eveng_lab.example.path
+  network_id     = eveng_network.bridged.id
   source_node_id = eveng_node.node.id
   source_port    = "Gi0/1"
-  target_node_id = eveng_node.test.id
-  target_port    = "Gi0/1"
 }
 
 resource "eveng_start_nodes" "start" {
