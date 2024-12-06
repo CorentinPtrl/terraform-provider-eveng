@@ -33,9 +33,9 @@ type labResource struct {
 type labResourceModel struct {
 	FolderPath  basetypes.StringValue `tfsdk:"folder_path"`
 	Path        basetypes.StringValue `tfsdk:"path"`
-	Author      string                `tfsdk:"author"`
-	Body        string                `tfsdk:"body"`
-	Description string                `tfsdk:"description"`
+	Author      basetypes.StringValue `tfsdk:"author"`
+	Body        basetypes.StringValue `tfsdk:"body"`
+	Description basetypes.StringValue `tfsdk:"description"`
 	Filename    basetypes.StringValue `tfsdk:"filename"`
 	Name        string                `tfsdk:"name"`
 	Version     basetypes.StringValue `tfsdk:"version"`
@@ -126,9 +126,9 @@ func (r *labResource) Create(ctx context.Context, req resource.CreateRequest, re
 	}
 	path = path + "/" + plan.Name + ".unl"
 	err := r.client.Lab.CreateLab(path, evengsdk.Lab{
-		Author:      plan.Author,
-		Body:        plan.Body,
-		Description: plan.Description,
+		Author:      plan.Author.ValueString(),
+		Body:        plan.Body.ValueString(),
+		Description: plan.Description.ValueString(),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to create lab", err.Error())
@@ -143,6 +143,17 @@ func (r *labResource) Create(ctx context.Context, req resource.CreateRequest, re
 	plan.Filename = basetypes.NewStringValue(lab.Filename)
 	plan.Version = basetypes.NewStringValue(lab.Version.String())
 	plan.Id = basetypes.NewStringValue(lab.Id)
+
+	if lab.Description == "" {
+		plan.Description = basetypes.NewStringNull()
+	}
+	if lab.Author == "" {
+		plan.Author = basetypes.NewStringNull()
+	}
+	if lab.Body == "" {
+		plan.Body = basetypes.NewStringNull()
+	}
+
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -163,11 +174,12 @@ func (r *labResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		resp.State.RemoveResource(ctx)
 		return
 	}
-	state.Author = lab.Author
-	state.Body = lab.Body
-	state.Description = lab.Description
+	state.Author = stringToBasetype(lab.Author)
+	state.Body = stringToBasetype(lab.Body)
+	state.Description = stringToBasetype(lab.Description)
 	state.Filename = basetypes.NewStringValue(lab.Filename)
 	state.Version = basetypes.NewStringValue(lab.Version.String())
+
 	diags = resp.State.Set(ctx, state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -197,9 +209,9 @@ func (r *labResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	}
 	err = r.client.Lab.UpdateLab(state.Path.ValueString(), evengsdk.Lab{
 		Name:        plan.Name,
-		Author:      plan.Author,
-		Body:        plan.Body,
-		Description: plan.Description,
+		Author:      plan.Author.ValueString(),
+		Body:        plan.Body.ValueString(),
+		Description: plan.Description.ValueString(),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to update lab", err.Error())
@@ -211,13 +223,14 @@ func (r *labResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		resp.Diagnostics.AddError("Failed to read lab", err.Error())
 		return
 	}
-	state.Author = lab.Author
-	state.Body = lab.Body
-	state.Description = lab.Description
+	state.Author = stringToBasetype(lab.Author)
+	state.Body = stringToBasetype(lab.Body)
+	state.Description = stringToBasetype(lab.Description)
 	state.Filename = basetypes.NewStringValue(lab.Filename)
 	state.Version = basetypes.NewStringValue(lab.Version.String())
 	state.Name = lab.Name
 	state.FolderPath = plan.FolderPath
+
 	diags = resp.State.Set(ctx, state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -257,4 +270,11 @@ func (r *labResource) MoveLab(plan *labResourceModel, state *labResourceModel) e
 		state.Path = basetypes.NewStringValue(path)
 	}
 	return nil
+}
+
+func stringToBasetype(s string) basetypes.StringValue {
+	if s == "" {
+		return basetypes.NewStringNull()
+	}
+	return basetypes.NewStringValue(s)
 }
