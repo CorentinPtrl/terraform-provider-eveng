@@ -144,16 +144,6 @@ func (r *labResource) Create(ctx context.Context, req resource.CreateRequest, re
 	plan.Version = basetypes.NewStringValue(lab.Version.String())
 	plan.Id = basetypes.NewStringValue(lab.Id)
 
-	if lab.Description == "" {
-		plan.Description = basetypes.NewStringNull()
-	}
-	if lab.Author == "" {
-		plan.Author = basetypes.NewStringNull()
-	}
-	if lab.Body == "" {
-		plan.Body = basetypes.NewStringNull()
-	}
-
 	diags = resp.State.Set(ctx, plan)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
