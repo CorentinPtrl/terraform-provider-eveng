@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -176,6 +177,12 @@ func (r *nodeResource) Create(ctx context.Context, req resource.CreateRequest, r
 	err = r.client.Node.CreateNode(plan.LabPath.ValueString(), &node)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to create node", err.Error())
+		return
+	}
+	tflog.Info(ctx, fmt.Sprintf("Created node %d", node.Id))
+	_, err = r.client.Node.GetNodeConfig(plan.LabPath.ValueString(), node.Id)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to get node config", err.Error())
 		return
 	}
 	err = r.client.Node.UpdateNodeConfig(plan.LabPath.ValueString(), node.Id, plan.Config.ValueString())

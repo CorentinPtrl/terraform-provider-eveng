@@ -48,8 +48,3 @@ resource "eveng_node_link" "node" {
   target_node_id = eveng_node.test.id
   target_port    = "Gi0/1"
 }
-
-resource "eveng_start_nodes" "start" {
-  lab_path   = eveng_lab.example.path
-  depends_on = [eveng_node_link.node]
-}

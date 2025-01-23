@@ -3,7 +3,7 @@ module terraform-provider-eveng
 go 1.22.7
 
 require (
-	github.com/CorentinPtrl/evengsdk v0.0.8
+	github.com/CorentinPtrl/evengsdk v0.0.9
 	github.com/hashicorp/terraform-plugin-framework v1.13.0
 	github.com/hashicorp/terraform-plugin-framework-validators v0.16.0
 	github.com/hashicorp/terraform-plugin-go v0.25.0

@@ -112,8 +112,7 @@ func (r *startNodesResource) Read(ctx context.Context, req resource.ReadRequest,
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	state.StartTime = basetypes.NewInt64Null()
-	resp.State.Set(ctx, state)
+	resp.State.RemoveResource(ctx)
 }
 
 // Update updates the resource and sets the updated Terraform state on success.
