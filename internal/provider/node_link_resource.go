@@ -553,23 +553,34 @@ func (r *nodeLinkResource) GetTopologyForTargetNode(ctx context.Context, plan No
 		tflog.Error(ctx, fmt.Sprintf("Failed to get topology %s", err))
 	}
 	for _, node := range topology {
-		if node["source"].(string) == fmt.Sprintf("node%d", plan.TargetNodeId.ValueInt64()) && node["source_label"].(string) == plan.TargetPort.ValueString() {
-			style := node["style"].(string)
-			if style == "" {
+		node_source, ok := node["source"].(string)
+		if !ok {
+			continue
+		}
+		source_label, ok := node["source_label"].(string)
+		if !ok {
+			continue
+		}
+		if node_source == fmt.Sprintf("node%d", plan.TargetNodeId.ValueInt64()) && source_label == plan.TargetPort.ValueString() {
+			style, ok := node["style"].(string)
+			if style == "" || !ok {
 				style = "Solid"
 			}
-			color := node["color"].(string)
-			if color == "" {
+			color, ok := node["color"].(string)
+			if color == "" || !ok {
 				color = "#3e7089"
 			}
 			srcpos, _ := strconv.ParseFloat(node["srcpos"].(string), 32)
 			dstpos, _ := strconv.ParseFloat(node["dstpos"].(string), 32)
-			linkstyle := node["linkstyle"].(string)
-			if linkstyle == "" {
+			linkstyle, ok := node["linkstyle"].(string)
+			if linkstyle == "" || !ok {
 				linkstyle = "Straight"
 			}
 			width, _ := strconv.Atoi(node["width"].(string))
-			label := node["label"].(string)
+			label, ok := node["label"].(string)
+			if !ok {
+				label = ""
+			}
 			labelpos, _ := strconv.ParseFloat(node["labelpos"].(string), 32)
 			stub, _ := strconv.Atoi(node["stub"].(string))
 			curviness, _ := strconv.Atoi(node["curviness"].(string))
