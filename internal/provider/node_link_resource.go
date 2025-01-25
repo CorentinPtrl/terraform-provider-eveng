@@ -262,7 +262,7 @@ func (r *nodeLinkResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	if r.client.IsPro() {
+	if r.client.IsPro() && plan.Style != nil {
 		r.MakeNodeStyle(ctx, plan)
 		rstyle := r.NewStyleModel(ctx, plan)
 		plan.Style = &rstyle
