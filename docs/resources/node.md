@@ -63,5 +63,14 @@ resource "eveng_node" "node" {
 
 - `console` (String) Console type of the node.
 - `id` (Number) Unique Id of the node.
+- `interfaces` (Attributes) Interfaces of the node. (see [below for nested schema](#nestedatt--interfaces))
 - `url` (String) URL associated with the node.
 - `uuid` (String) UUID of the node.
+
+<a id="nestedatt--interfaces"></a>
+### Nested Schema for `interfaces`
+
+Read-Only:
+
+- `ethernet` (List of String) Ethernet interfaces.
+- `serial` (List of String) Serial interfaces.

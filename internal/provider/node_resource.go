@@ -5,8 +5,10 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/CorentinPtrl/evengsdk"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -31,23 +33,29 @@ type nodeResource struct {
 
 // nodeResourceModel describes the resource data model.
 type nodeResourceModel struct {
-	LabPath  types.String `tfsdk:"lab_path"`
-	Console  types.String `tfsdk:"console"`
-	Delay    types.Int64  `tfsdk:"delay"`
-	Id       types.Int64  `tfsdk:"id"`
-	Left     types.Int64  `tfsdk:"left"`
-	Icon     types.String `tfsdk:"icon"`
-	Image    types.String `tfsdk:"image"`
-	Name     types.String `tfsdk:"name"`
-	Ram      types.Int64  `tfsdk:"ram"`
-	Template types.String `tfsdk:"template"`
-	Type     types.String `tfsdk:"type"`
-	Top      types.Int64  `tfsdk:"top"`
-	Url      types.String `tfsdk:"url"`
-	Config   types.String `tfsdk:"config"`
-	Cpu      types.Int64  `tfsdk:"cpu"`
-	Ethernet types.Int64  `tfsdk:"ethernet"`
-	Uuid     types.String `tfsdk:"uuid"`
+	LabPath    types.String `tfsdk:"lab_path"`
+	Console    types.String `tfsdk:"console"`
+	Delay      types.Int64  `tfsdk:"delay"`
+	Id         types.Int64  `tfsdk:"id"`
+	Left       types.Int64  `tfsdk:"left"`
+	Icon       types.String `tfsdk:"icon"`
+	Image      types.String `tfsdk:"image"`
+	Name       types.String `tfsdk:"name"`
+	Ram        types.Int64  `tfsdk:"ram"`
+	Template   types.String `tfsdk:"template"`
+	Type       types.String `tfsdk:"type"`
+	Top        types.Int64  `tfsdk:"top"`
+	Url        types.String `tfsdk:"url"`
+	Config     types.String `tfsdk:"config"`
+	Cpu        types.Int64  `tfsdk:"cpu"`
+	Ethernet   types.Int64  `tfsdk:"ethernet"`
+	Interfaces types.Object `tfsdk:"interfaces"`
+	Uuid       types.String `tfsdk:"uuid"`
+}
+
+type interfacesResourceModel struct {
+	Serial   types.List `tfsdk:"serial"`
+	Ethernet types.List `tfsdk:"ethernet"`
 }
 
 // Metadata returns the resource type name.
@@ -152,6 +160,22 @@ func (r *nodeResource) Schema(_ context.Context, _ resource.SchemaRequest, resp 
 				Computed:    true,
 				Description: "Number of Ethernet interfaces.",
 			},
+			"interfaces": schema.SingleNestedAttribute{
+				Computed:    true,
+				Description: "Interfaces of the node.",
+				Attributes: map[string]schema.Attribute{
+					"serial": schema.ListAttribute{
+						Computed:    true,
+						ElementType: types.StringType,
+						Description: "Serial interfaces.",
+					},
+					"ethernet": schema.ListAttribute{
+						Computed:    true,
+						ElementType: types.StringType,
+						Description: "Ethernet interfaces.",
+					},
+				},
+			},
 			"uuid": schema.StringAttribute{
 				Computed:    true,
 				Description: "UUID of the node.",
@@ -196,11 +220,22 @@ func (r *nodeResource) Create(ctx context.Context, req resource.CreateRequest, r
 		resp.Diagnostics.AddError("Failed to update node config", err.Error())
 		return
 	}
+	ints, err := r.NewInterfaceModel(plan.LabPath.ValueString(), node.Id)
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to get node interfaces", err.Error())
+		return
+	}
 	state, err := r.NewNodeModel(plan.LabPath.ValueString(), node.Id)
 	if err != nil {
 		resp.Diagnostics.AddError("Failed to get node", err.Error())
 		return
 	}
+	objectValue, diags := types.ObjectValueFrom(ctx, ints.AttributeTypes(), ints)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	state.Interfaces = objectValue
 	diags = resp.State.Set(ctx, state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -222,7 +257,17 @@ func (r *nodeResource) Read(ctx context.Context, req resource.ReadRequest, resp 
 		resp.State.RemoveResource(ctx)
 		return
 	}
-
+	ints, err := r.NewInterfaceModel(state.LabPath.ValueString(), int(state.Id.ValueInt64()))
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to get node interfaces", err.Error())
+		return
+	}
+	objectValue, diags := types.ObjectValueFrom(ctx, ints.AttributeTypes(), ints)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	state.Interfaces = objectValue
 	diags = resp.State.Set(ctx, state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -268,7 +313,17 @@ func (r *nodeResource) Update(ctx context.Context, req resource.UpdateRequest, r
 		resp.Diagnostics.AddError("Failed to get node", err.Error())
 		return
 	}
-
+	ints, err := r.NewInterfaceModel(state.LabPath.ValueString(), int(state.Id.ValueInt64()))
+	if err != nil {
+		resp.Diagnostics.AddError("Failed to get node interfaces", err.Error())
+		return
+	}
+	objectValue, diags := types.ObjectValueFrom(ctx, ints.AttributeTypes(), ints)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+	state.Interfaces = objectValue
 	diags = resp.State.Set(ctx, state)
 	resp.Diagnostics.Append(diags...)
 	if resp.Diagnostics.HasError() {
@@ -378,4 +433,38 @@ func (r *nodeResource) NewNodeModel(labPath string, nodeId int) (nodeResourceMod
 	}
 	model.LabPath = types.StringValue(labPath)
 	return model, nil
+}
+
+func (r *nodeResource) NewInterfaceModel(labPath string, nodeId int) (interfacesResourceModel, error) {
+	interfaces, err := r.client.Node.GetNodeInterfaces(labPath, nodeId)
+	if err != nil {
+		return interfacesResourceModel{}, err
+	}
+	model := interfacesResourceModel{}
+	var serialInts []attr.Value
+	for _, s := range interfaces.Serial {
+		serialInts = append(serialInts, types.StringValue(s.Name))
+	}
+	serial, diags := types.ListValue(types.StringType, serialInts)
+	if diags.HasError() {
+		return model, errors.New("Failed to create serial interfaces list")
+	}
+	var ethernetInts []attr.Value
+	for _, e := range interfaces.Ethernet {
+		ethernetInts = append(ethernetInts, types.StringValue(e.Name))
+	}
+	ethernet, diags := types.ListValue(types.StringType, ethernetInts)
+	if diags.HasError() {
+		return model, errors.New("Failed to create ethernet interfaces list")
+	}
+	model.Serial = serial
+	model.Ethernet = ethernet
+	return model, nil
+}
+
+func (m interfacesResourceModel) AttributeTypes() map[string]attr.Type {
+	return map[string]attr.Type{
+		"serial":   types.ListType{ElemType: types.StringType},
+		"ethernet": types.ListType{ElemType: types.StringType},
+	}
 }
